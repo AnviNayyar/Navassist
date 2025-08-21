@@ -1,65 +1,60 @@
-import { useEffect, useRef } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import SpeechRecognition, { useSpeechRecognition } from "react-speech-recognition";
+import React, { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition';
 
-export default function VoiceHandler() {
+const VoiceHandler = () => {
   const navigate = useNavigate();
-  const location = useLocation();
-  const { transcript, resetTranscript, browserSupportsSpeechRecognition } =
-    useSpeechRecognition();
 
-  const lastActionAt = useRef(0); // debounce
-
-  // Start continuous listening once
-  useEffect(() => {
-    if (!browserSupportsSpeechRecognition) return;
-    SpeechRecognition.startListening({
-      continuous: true,
-      language: "en-US", // change to "en-IN" if you prefer
-    });
-    return () => SpeechRecognition.stopListening();
-  }, [browserSupportsSpeechRecognition]);
-
-  // Parse & route on every new transcript chunk
-  useEffect(() => {
-    if (!transcript) return;
-
-    const text = transcript.toLowerCase().trim();
-    const now = Date.now();
-    if (now - lastActionAt.current < 1200) return; // 1.2s debounce
-
-    // commands (include a few synonyms)
-    const goHome =
-      text.includes("home") || text.includes("main") || text.includes("start");
-    const goBack = text.includes("back") || text.includes("go back");
-    const goNav =
-      text.includes("navigate") || text.includes("navigation") || text.includes("route");
-    const goDetect =
-      text.includes("detect") || text.includes("detection") || text.includes("object");
-    const goSOS =
-      text.includes("sos") || text.includes("emergency") || text.includes("help");
-    const goReport = text.includes("report") || text.includes("report issue");
-
-    if (goHome) {
-      navigate("/");
-    } else if (goBack) {
-      // always return to home for clarity (stable UX)
-      if (location.pathname !== "/") navigate("/");
-    } else if (goNav) {
-      navigate("/navigation");
-    } else if (goDetect) {
-      navigate("/detection");
-    } else if (goSOS) {
-      navigate("/sos");
-    } else if (goReport) {
-      navigate("/report");
-    } else {
-      return; // no action
+  const sendEmergencySMS = () => {
+    if (!navigator.geolocation) {
+      alert('Geolocation is not supported by your browser');
+      return;
     }
 
-    lastActionAt.current = now;
-    resetTranscript(); // clear so it doesn’t retrigger
-  }, [transcript, navigate, resetTranscript, location]);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        const emergencyMessage = encodeURIComponent(
+          `Emergency! I need help. My location: https://maps.google.com/?q=${latitude},${longitude}`
+        );
 
-  return null; // no UI; purely background listener
-}
+        // Default emergency number, can be changed or pulled from user context
+        const emergencyNumber = '1234567890';
+
+        // This SMS URI scheme works on most mobiles
+        const smsLink = `sms:${emergencyNumber}?&body=${emergencyMessage}`;
+
+        window.open(smsLink);
+      },
+      (error) => {
+        alert('Unable to retrieve your location');
+      }
+    );
+  };
+
+  const commands = [
+    { command: ['profile', 'open profile'], callback: () => navigate('/profile') },
+    { command: ['settings', 'open settings'], callback: () => navigate('/settings') },
+    { 
+      command: ['sos', 'emergency', 'help me'], 
+      callback: () => sendEmergencySMS() 
+    },
+    { command: ['navigate', 'open navigation', 'home'], callback: () => navigate('/home') },
+    { command: 'back', callback: () => navigate(-1) },
+  ];
+
+  const { browserSupportsSpeechRecognition } = useSpeechRecognition({ commands });
+
+  useEffect(() => {
+    if (browserSupportsSpeechRecognition) {
+      SpeechRecognition.startListening({ continuous: true, language: 'en-IN' });
+    }
+    return () => {
+      SpeechRecognition.stopListening();
+    };
+  }, [browserSupportsSpeechRecognition]);
+
+  return null;
+};
+
+export default VoiceHandler;

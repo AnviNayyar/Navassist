@@ -1,25 +1,41 @@
-import React from "react";
-import "../App.css";
+import React, { useContext } from "react";
 import { useNavigate } from "react-router-dom";
+import { UserContext } from "../context/UserContext";
+import { speakText } from '../utils/speech';
+
+import "../App.css";
 
 function HomePage() {
   const navigate = useNavigate();
+  // Get the microphone controls from the central context
+  const { listening, startListening, stopListening } = useContext(UserContext);
+
+  const handleMicClick = () => {
+    if (listening) {
+      stopListening();
+      speakText('Microphone off');
+    } else {
+      startListening();
+    }
+  };
 
   return (
     <div className="home-container">
-      {/* Title */}
       <h1 className="app-title">NavAssist</h1>
       <p className="app-subtitle">Your accessibility companion</p>
 
-      {/* Mic Section */}
+      {/* Mic Section now uses the central logic */}
       <div className="mic-section">
-        <div className="mic-button">
+        <div 
+          className={`mic-button ${listening ? 'listening-effect' : ''}`}
+          onClick={handleMicClick}
+          aria-label="Tap to speak"
+        >
           <span role="img" aria-label="mic" style={{ fontSize: "2rem" }}>🎤</span>
         </div>
-        <button className="mic-label">Tap to speak</button>
+        <p className="mic-label-text">{listening ? 'Listening...' : 'Tap to speak'}</p>
       </div>
 
-      {/* Features */}
       <div className="features-grid">
         <div className="feature-card" onClick={() => navigate("/navigation")}>
           <h3>Navigation</h3>
@@ -39,11 +55,10 @@ function HomePage() {
         </div>
       </div>
 
-      {/* Bottom Navbar */}
       <div className="bottom-nav">
-        <div className="nav-item active">Home</div>
-        <div className="nav-item">Settings</div>
-        <div className="nav-item">Profile</div>
+        <div className="nav-item active" onClick={() => navigate('/')}>Home</div>
+        <div className="nav-item" onClick={() => navigate('/settings')}>Settings</div>
+        <div className="nav-item" onClick={() => navigate('/profile')}>Profile</div>
       </div>
     </div>
   );
